@@ -1,0 +1,158 @@
+---
+title: "NYPD Shooting Incident Data Report"
+author: "Tina L."
+date: "2024-06-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project File
+This project file will analyze NYPD Shooting Incident Data (Historic), which can be exported from the website: <https://catalog.data.gov/dataset/nypd-shooting-incident-data-historic>
+
+The data lists every shooting incident that happened in the city of New York going back to 2006 through the end of the previous calendar year. 
+
+The data was last updated on April 25, 2024 by NYC OpenData. Each record represents a shooting incident in the city of New York and includes information about the incident, such as the location and time. Information pertaining to the suspects and the victims are included. This data is available to the public.
+
+## Importing Data
+Download the data from the catalog.data.gov website as a csv file. Save the CSV in your working directory and use the read_csv function to load the data into R. We will load the library tidyverse which is an R package that helps to transform and tidy data.
+
+```{r Import Data}
+library(tidyverse)
+data <- read_csv('NYPD_Shooting_Incident_Data__Historic_.csv')
+
+```
+
+## Tidying and Transforming Data
+After importing the data, we will ensure that the data has the correct data type and in the right format.
+
+Check the data type of each column of the project file.
+```{r Data Structure}
+spec(data)
+```
+
+Many of the data columns defined as character can be re-defined as categorical variables.
+
+```{r Categorical Variables}
+#converting categorical variables to character data type
+data <- data%>%
+  mutate(BORO = as.factor(BORO),
+         PERP_AGE_GROUP = as.factor(PERP_AGE_GROUP),
+         PERP_SEX = as.factor(PERP_SEX),
+         PERP_RACE = as.factor(PERP_RACE),
+         PERP_AGE_GROUP = as.factor(PERP_AGE_GROUP),
+         VIC_AGE_GROUP = as.factor(VIC_AGE_GROUP),
+         VIC_SEX = as.factor(VIC_SEX),
+         VIC_RACE = as.factor(VIC_RACE)
+        )
+
+summary(data)
+```
+
+The OCCUR_DATE data type is String. It should be converted to DATE.
+```{r OCCUR_DATE}
+data <- data%>%
+  mutate(OCCUR_DATE = as.Date(OCCUR_DATE, "%m/%d/%y"))
+```
+
+Check if the data structure has the correct data type.
+```{r Check Data Structure}
+#get structure of data
+str(data)
+```
+
+When analyzing the different sub-groups for VIC_AGE_GROUP, there is one response saying their age group is 1022. This does not seem right as no one in the world can live up to the age of 1022. Therefore, convert this response to 'unknown'.
+
+```{r VIC_AGE_GROUP}
+unique(data$VIC_AGE_GROUP)
+table(data$VIC_AGE_GROUP)
+data['VIC_AGE_GROUP'][data['VIC_AGE_GROUP'] == '1022'] <- 'UNKNOWN'
+```
+
+Similar to VIC_AGE_GROUP, PERP_AGE_GROUP has responses with age group include 1020,1028,224, and 940. This does not seem right as no one in the world can live up to these ages. Therefore, convert this responses to 'unknown'.
+```{r PERP_AGE_GROUP}
+table(data$PERP_AGE_GROUP)
+data['PERP_AGE_GROUP'][data['PERP_AGE_GROUP'] == '1020'] <- 'UNKNOWN'
+data['PERP_AGE_GROUP'][data['PERP_AGE_GROUP'] == '1028'] <- 'UNKNOWN'
+data['PERP_AGE_GROUP'][data['PERP_AGE_GROUP'] == '224'] <- 'UNKNOWN'
+data['PERP_AGE_GROUP'][data['PERP_AGE_GROUP'] == '940'] <- 'UNKNOWN'
+```
+
+
+Check for null values. Many variables pertaining to the suspect or the location has missing values. Variables regarding the victims and boroughs contains no missing data, therefore we can focus our analysis on the completed information provided.
+
+```{r Missing Values}
+#checking for missing values
+colSums(is.na(data))
+```
+
+## Visualizing and Analyzing Data
+After cleaning the data, we can now use the data to visualize.
+
+Let us check how many incidents there are by each borough. By looking at the graph below, we can identify that Brooklyn has the most incidents, with Staten Island having the least.
+
+```{r Borough}
+#bar graph of incidents by Borough
+ggplot(data, aes(x =BORO)) +
+  geom_bar(position = "dodge") + 
+  labs(title = "Bar Graph of Incidents by Borough")
+```
+
+By graphing the incidencse from the project file by victim's race, we can conclude that the black are mostly targeted.
+```{r VIC_RACE}
+#bar graph of incidents by victim's race
+ggplot(data, aes(x =VIC_RACE)) +
+    geom_bar() + 
+    coord_flip() +
+    labs(title = "Bar Graph of Incidents by Victims' Race")
+```
+
+The graph below displays the number of incidents for each victim age group and sectioned by the victim's sex. 
+
+By glancing at this graph, we can see that male are dominantly the victims, and that males in the age group 25-44 are heavily targeted.
+
+```{r VIC_AGE_GROUP AND VIC_SEX}
+
+ggplot(data, aes(x =VIC_AGE_GROUP, fill = VIC_SEX)) +
+         geom_bar(position = "dodge") + 
+         labs(title = "Bar Graph of Incidents by Victims Age Group and Victims Sex")
+```
+
+By graphing the victim age group and analyzing it with statistical murder flag, it shows that since those in age 25-44 are the most targeted, there are more murder instances in this age group.
+```{r VIC_AGE_GROUP AND STATISTICAL_MURDER_FLAG}
+
+ggplot(data, aes(x =VIC_AGE_GROUP, fill = STATISTICAL_MURDER_FLAG)) +
+         geom_bar() + 
+         labs(title = "Bar Grapn of Incidents by Victims Age Group and Statistical Murder Flag")
+```
+
+We can run a chi square test. Chi square test are used for two categorical variables to check association between VIC_AGE_GROUP and VIC_SEX.
+By looking at the result of the chi square test, the p value is less than 0.5. which means there is significant association between VIC_AGE_GROUP AND VIC_SEX.
+
+```{r Chi-Squared Test, warning=FALSE}
+chi <- chisq.test(data$VIC_AGE_GROUP, data$VIC_SEX)
+chi
+```
+
+## Bias Identification
+When analyzing data, it is important to recognize that bias can skew the results and analysis. Bias is defined as the prejudice in favor or against someone, a person or a group compared with another in a way that it can be seen as unfair. 
+
+Below are the potential bias for this data analysis. 
+
+1. Selection Bias \
+Only incidents that are reported are recorded in this project file. There can be incidents that are not in this data and analysis, leading to possible skewed results.
+
+2. Reporting Bias \
+The officers may have bias when reporting the incidents. For example, the suspect's age or race could be recorded with bias, such as filling out the incidents based on their perception, which may be incorrect.
+
+3. Measurement Bias \
+There can be incorrect recording of where location, coordinates, statistical murder is reported. 
+
+4. Social Bias \
+When analyzing the data, it is apparent that there is a social bias that the black are mainly involved in the shootings as the suspect and the victim. When reporting the incidents, the police or reporter may have an assumption on supsects' or victims' race.
+
+5. Detection Bias \
+When reporting the incidents, there can be detection bias, such as identifying the suspect incorrectly by age, gender, or race. There can also be detection bias in identifying the victims as well. 
+
